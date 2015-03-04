@@ -28,6 +28,7 @@ Sven Knuth
 
 __author__ = 'knuths'
 
+import string
 
 from PySide.QtCore import *
 from PySide.QtGui import *
@@ -148,6 +149,7 @@ class PaPITreeModel(QStandardItemModel):
 
         return Qt.ItemIsSelectable | Qt.ItemIsEnabled
 
+
 # ------------------------------------
 # Item Custom
 # ------------------------------------
@@ -237,6 +239,73 @@ class DSignalTreeItem(PaPITreeItem):
 
         if role == Qt.EditRole:
             return self.dsignal.dname
+
+        return None
+
+
+class CustomFieldItem(QStandardItem):
+    def __init__(self, custom_field):
+        super().__init__()
+
+        self.object = custom_field
+
+    def get_decoration(self):
+        return None
+
+    def data(self, role):
+        """
+        For Qt.Role see 'http://qt-project.org/doc/qt-4.8/qt.html#ItemDataRole-enum'
+        :param role:
+        :return:
+        """
+
+        if role == Qt.ToolTipRole:
+            return self.tool_tip
+
+        if role == Qt.DisplayRole:
+            return None
+
+        if role == Qt.DecorationRole:
+            return self.get_decoration()
+
+        if role == Qt.UserRole:
+            return self.object
+
+        if role == Qt.EditRole:
+            return None
+
+        return None
+
+class CustomTreeItem(QStandardItem):
+    def __init__(self, custom_field):
+        super().__init__()
+
+        self.object = custom_field
+
+    def get_decoration(self):
+        return None
+
+    def data(self, role):
+        """
+        For Qt.Role see 'http://qt-project.org/doc/qt-4.8/qt.html#ItemDataRole-enum'
+        :param role:
+        :return:
+        """
+
+        if role == Qt.ToolTipRole:
+            return self.tool_tip
+
+        if role == Qt.DisplayRole:
+            return self.object.desc
+
+        if role == Qt.DecorationRole:
+            return self.get_decoration()
+
+        if role == Qt.UserRole:
+            return self.object
+
+        if role == Qt.EditRole:
+            return None
 
         return None
 
@@ -397,7 +466,6 @@ class DBlockTreeModel(PaPITreeModel):
             else:
                 return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
 
-
     def setData(self, index, value, role):
         """
         This function is called when a content in a row is edited by the user.
@@ -425,3 +493,141 @@ class DBlockTreeModel(PaPITreeModel):
                 return True
 
         return False
+
+
+class CustomFieldModel(QStandardItemModel):
+    def __init__(self, parent=None):
+        super(CustomFieldModel, self).__init__(parent)
+
+    def data(self, index, role):
+        """
+        For Qt.Role see 'http://qt-project.org/doc/qt-4.8/qt.html#ItemDataRole-enum'
+        :param index:
+        :param role:
+        :return:
+        """
+
+        if not index.isValid():
+            return None
+
+        row = index.row()
+        col = index.column()
+
+        if role == Qt.ToolTipRole:
+            return super(CustomFieldModel, self).data(index, Qt.ToolTipRole)
+
+        if role == Qt.DisplayRole:
+
+            if col == 0:
+                field = super(CustomFieldModel, self).data(index, Qt.UserRole)
+                return field.desc
+            if col == 1:
+                index_sibling = index.sibling(row, col-1)
+                field = super(CustomFieldModel, self).data(index_sibling, Qt.UserRole)
+                return field.type
+            if col == 2:
+                return None
+
+        if role == Qt.DecorationRole:
+            pass
+
+        if role == Qt.UserRole:
+            pass
+
+        if role == Qt.EditRole:
+            if col == 0:
+                field = super(CustomFieldModel, self).data(index, Qt.UserRole)
+                return field.desc
+            if col == 1:
+                index_sibling = index.sibling(row, col-1)
+                field = super(CustomFieldModel, self).data(index_sibling, Qt.UserRole)
+                return field.type
+            if col == 2:
+                return None
+
+        return None
+
+    def setData(self, index, value, role):
+        """
+        This function is called when a content in a row is edited by the user.
+
+        :param index: Current selected index.
+        :param value: New value from user
+        :param role:
+        :return:
+        """
+
+        if not index.isValid():
+            return None
+
+        row = index.row()
+        col = index.column()
+
+        if role == Qt.EditRole:
+
+            if col == 0:
+
+                field = super(CustomFieldModel, self).data(index, Qt.UserRole)
+                field.desc = value
+                self.dataChanged.emit(index, None)
+
+                return True
+
+            if col == 1:
+                index_sibling = index.sibling(row, col-1)
+                field = super(CustomFieldModel, self).data(index_sibling, Qt.UserRole)
+                field.type = value
+                self.dataChanged.emit(index, None)
+
+        return False
+
+
+class StructTreeModel(PaPITreeModel):
+    """
+    This model is used to handle Plugin objects in TreeView created by the yapsy plugin manager.
+    """
+    def __init__(self, parent=None):
+        super(StructTreeModel, self).__init__(parent)
+
+class StructRootNode(QStandardItem):
+    """
+    This model is used to handle Plugin objects in TreeView created by the yapsy plugin manager.
+    """
+    def __init__(self, name, parent=None):
+        super(StructRootNode, self).__init__(name)
+        self.nodes = []
+
+    def appendRow(self, field):
+
+        elements = str.split(field.desc, "::")
+
+        if elements[0] not in self.nodes:
+            self.nodes.append(elements[0])
+
+            sub_elements = str.split(field.desc, "::", 1)
+            field.desc = sub_elements[1]
+
+            struct_node = StructTreeNode(field)
+            super(StructRootNode, self).appendRow(struct_node)
+
+class StructTreeNode(QStandardItem):
+    """
+    This model is used to handle Plugin objects in TreeView created by the yapsy plugin manager.
+    """
+    def __init__(self, field, parent=None):
+
+        elements = str.split(field.desc, "::")
+
+        super(StructTreeNode, self).__init__(elements[0])
+        print(elements[1::])
+        print(elements)
+        if len(elements) > 1:
+
+            sub_elements = str.split(field.desc, "::", 1)
+            #sub_elements = str.join('', elements[1::])
+
+            print(sub_elements)
+            field.desc = sub_elements[1]
+
+            node = StructTreeNode(field)
+            self.appendRow(node)

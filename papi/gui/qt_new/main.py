@@ -48,15 +48,16 @@ from papi.ConsoleLog            import ConsoleLog
 
 from papi.constants import GUI_PAPI_WINDOW_TITLE, GUI_WOKRING_INTERVAL, GUI_PROCESS_CONSOLE_IDENTIFIER, \
     GUI_PROCESS_CONSOLE_LOG_LEVEL, GUI_START_CONSOLE_MESSAGE, GUI_WAIT_TILL_RELOAD, GUI_DEFAULT_HEIGHT, GUI_DEFAULT_WIDTH, \
-    PLUGIN_STATE_PAUSE, PLUGIN_STATE_STOPPED, PAPI_ABOUT_TEXT, PAPI_ABOUT_TITLE, PAPI_DEFAULT_BG_PATH, PAPI_LAST_CFG_PATH
+    PLUGIN_STATE_STOPPED, PAPI_ABOUT_TEXT, PAPI_ABOUT_TITLE, PAPI_LAST_CFG_PATH
 
-from papi.constants import CONFIG_DEFAULT_FILE, PLUGIN_VIP_IDENTIFIER, PLUGIN_PCP_IDENTIFIER, CONFIG_DEFAULT_DIRECTORY
+from papi.constants import PLUGIN_VIP_IDENTIFIER, PLUGIN_PCP_IDENTIFIER, CONFIG_DEFAULT_DIRECTORY
 
 from papi.gui.gui_api import Gui_api
 from papi.gui.gui_event_processing import GuiEventProcessing
 
 from papi.gui.qt_new.create_plugin_menu import CreatePluginMenu
 from papi.gui.qt_new.overview_menu import OverviewPluginMenu
+from papi.gui.qt_new.create_record_config import CreateRecordingConfig
 
 from papi.gui.qt_new.PapiTabManger import PapiTabManger
 
@@ -130,6 +131,7 @@ class GUI(QMainWindow, Ui_QtNewMain):
         # -------------------------------------
         self.overview_menu = None
         self.create_plugin_menu = None
+        self.create_record_config = None
         # -------------------------------------
         # Create callback functions for buttons
         # -------------------------------------
@@ -147,6 +149,8 @@ class GUI(QMainWindow, Ui_QtNewMain):
 
         self.actionResetPaPI.triggered.connect(self.reset_papi)
         self.actionReloadConfig.triggered.connect(self.reload_config)
+        self.actionCreateRecording.triggered.connect(self.show_create_record_config)
+
 
         self.actionRunMode.triggered.connect(self.toggle_run_mode)
 
@@ -157,6 +161,8 @@ class GUI(QMainWindow, Ui_QtNewMain):
         self.actionPaPI_Doc.triggered.connect(self.papi_doc_triggerd)
         self.actionAbout.triggered.connect(self.papi_about_triggerd)
         self.actionAbout_Qt.triggered.connect(self.papi_about_qt_triggerd)
+
+
         # -------------------------------------
         # Create Icons for buttons
         # -------------------------------------
@@ -171,7 +177,6 @@ class GUI(QMainWindow, Ui_QtNewMain):
 
         self.saveButton.setIconSize(QSize(30, 30))
         self.saveButton.setIcon(save_icon)
-
 
     def get_gui_config(self):
         tabs = {}
@@ -255,9 +260,6 @@ class GUI(QMainWindow, Ui_QtNewMain):
         self.workingTimer.timeout.connect(lambda: self.gui_event_processing.gui_working(self.closeEvent, self.workingTimer))
         self.workingTimer.start(GUI_WOKRING_INTERVAL)
 
-
-
-
     def show_create_plugin_menu(self):
         """
 
@@ -282,6 +284,14 @@ class GUI(QMainWindow, Ui_QtNewMain):
         """
         self.overview_menu = OverviewPluginMenu(self.gui_api)
         self.overview_menu.show()
+
+    def show_create_record_config(self):
+        """
+
+        :return:
+        """
+        self.create_record_config = CreateRecordingConfig(self.gui_api)
+        self.create_record_config.show()
 
     def load_triggered(self):
         """

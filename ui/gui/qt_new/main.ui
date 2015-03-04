@@ -67,6 +67,7 @@
     <addaction name="actionExit"/>
     <addaction name="actionReloadConfig"/>
     <addaction name="actionResetPaPI"/>
+    <addaction name="actionCreateRecording"/>
    </widget>
    <widget class="QMenu" name="menuPlugin">
     <property name="title">
@@ -166,6 +167,11 @@
   <action name="actionAbout_PySide">
    <property name="text">
     <string>About PySide</string>
+   </property>
+  </action>
+  <action name="actionCreateRecording">
+   <property name="text">
+    <string>CreateRecording</string>
    </property>
   </action>
  </widget>
