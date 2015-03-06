@@ -68,6 +68,10 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
 
     def preview_button_triggered(self):
 
+        self.struct_model.clear()
+
+        self.root_struct = StructRootNode('Data')
+        self.struct_model.appendRow(self.root_struct)
 
         for i in range(self.field_model.rowCount()):
             field = self.field_model.item(i).object

@@ -260,7 +260,7 @@ class CustomFieldItem(QStandardItem):
         """
 
         if role == Qt.ToolTipRole:
-            return self.tool_tip
+            return None
 
         if role == Qt.DisplayRole:
             return None
@@ -589,45 +589,69 @@ class StructTreeModel(PaPITreeModel):
     def __init__(self, parent=None):
         super(StructTreeModel, self).__init__(parent)
 
+
 class StructRootNode(QStandardItem):
     """
     This model is used to handle Plugin objects in TreeView created by the yapsy plugin manager.
     """
     def __init__(self, name, parent=None):
         super(StructRootNode, self).__init__(name)
-        self.nodes = []
+        self.nodes = {}
 
     def appendRow(self, field):
 
         elements = str.split(field.desc, "::")
 
+
+
+        # Create new sub node for this element
+
         if elements[0] not in self.nodes:
-            self.nodes.append(elements[0])
 
-            sub_elements = str.split(field.desc, "::", 1)
-            field.desc = sub_elements[1]
+#            sub_elements = str.split(field.desc, "::", 1)
+            #field.desc = sub_elements[1]
+            struct_node = StructTreeNode(field, 0)
+            self.nodes[elements[0]] = struct_node
 
-            struct_node = StructTreeNode(field)
             super(StructRootNode, self).appendRow(struct_node)
+
+        # There is already a subnode for this element
+
+        if elements[0] in self.nodes:
+            self.nodes[elements[0]].appendRow(field)
 
 class StructTreeNode(QStandardItem):
     """
     This model is used to handle Plugin objects in TreeView created by the yapsy plugin manager.
     """
-    def __init__(self, field, parent=None):
+    def __init__(self, field, level, parent=None):
 
         elements = str.split(field.desc, "::")
 
-        super(StructTreeNode, self).__init__(elements[0])
-        print(elements[1::])
-        print(elements)
-        if len(elements) > 1:
+        self.nodes = {}
+        self.level = level
 
-            sub_elements = str.split(field.desc, "::", 1)
-            #sub_elements = str.join('', elements[1::])
+        super(StructTreeNode, self).__init__(elements[self.level])
 
-            print(sub_elements)
-            field.desc = sub_elements[1]
+        self.appendRow(field)
 
-            node = StructTreeNode(field)
-            self.appendRow(node)
+
+
+    def appendRow(self, field):
+
+        elements = str.split(field.desc, "::")
+
+        # Node is responsible for the first element
+
+        if len(elements) > self.level + 1:
+
+            if elements[self.level + 1] not in self.nodes:
+                struct_node = StructTreeNode(field, self.level + 1)
+                self.nodes[elements[self.level + 1]] = struct_node
+                super(StructTreeNode, self).appendRow(struct_node)
+
+            if elements[self.level + 1] in self.nodes:
+                self.nodes[elements[self.level + 1]].appendRow(field)
+
+
+
