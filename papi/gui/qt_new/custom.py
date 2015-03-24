@@ -57,3 +57,8 @@ class FileLineEdit(QLineEdit):
         if len(fileNames):
             if fileNames[0] != '':
                 self.setText(fileNames[0])
+
+class CustomField():
+    def __init__(self, desc='Data::force::sensor', size='3'):
+        self.desc = desc
+        self.size = size

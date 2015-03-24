@@ -33,6 +33,7 @@ from PySide.QtCore import *
 from PySide.QtGui import *
 from papi.data.DPlugin import *
 from papi.data.DSignal import DSignal
+from papi.gui.qt_new.custom import CustomField
 
 # ------------------------------------
 # Item Object
@@ -237,6 +238,74 @@ class DSignalTreeItem(PaPITreeItem):
 
         if role == Qt.EditRole:
             return self.dsignal.dname
+
+        return None
+
+
+class CustomFieldItem(QStandardItem):
+    def __init__(self, custom_field):
+        super().__init__()
+
+        self.object = custom_field
+
+    def get_decoration(self):
+        return None
+
+    def data(self, role):
+        """
+        For Qt.Role see 'http://qt-project.org/doc/qt-4.8/qt.html#ItemDataRole-enum'
+        :param role:
+        :return:
+        """
+
+        if role == Qt.ToolTipRole:
+            return None
+
+        if role == Qt.DisplayRole:
+            return None
+
+        if role == Qt.DecorationRole:
+            return self.get_decoration()
+
+        if role == Qt.UserRole:
+            return self.object
+
+        if role == Qt.EditRole:
+            return None
+
+        return None
+
+
+class CustomTreeItem(QStandardItem):
+    def __init__(self, custom_field):
+        super().__init__()
+
+        self.object = custom_field
+
+    def get_decoration(self):
+        return None
+
+    def data(self, role):
+        """
+        For Qt.Role see 'http://qt-project.org/doc/qt-4.8/qt.html#ItemDataRole-enum'
+        :param role:
+        :return:
+        """
+
+        if role == Qt.ToolTipRole:
+            return self.tool_tip
+
+        if role == Qt.DisplayRole:
+            return self.object.desc
+
+        if role == Qt.DecorationRole:
+            return self.get_decoration()
+
+        if role == Qt.UserRole:
+            return self.object
+
+        if role == Qt.EditRole:
+            return None
 
         return None
 
@@ -460,7 +529,8 @@ class CustomFieldModel(QStandardItemModel):
                 return None
 
         if role == Qt.DecorationRole:
-            pass
+            if col == 2:
+                return None
 
         if role == Qt.UserRole:
             pass
@@ -512,6 +582,14 @@ class CustomFieldModel(QStandardItemModel):
 
         return False
 
+    def flags(self, index):
+        row = index.row()
+        col = index.column()
+
+        if col == 2:
+            return ~Qt.ItemIsEditable & ~Qt.ItemIsSelectable
+
+        return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
 
 class StructTreeModel(PaPITreeModel):
     """
@@ -540,16 +618,14 @@ class StructTreeModel(PaPITreeModel):
         if role == Qt.DisplayRole:
 
             if col == 0:
-                item = super(StructTreeModel, self).data(index, Qt.UserRole)
-                if item is None:
-                    return super(StructTreeModel, self).data(index, Qt.DisplayRole)
-                return item.desc
+                return super(StructTreeModel, self).data(index, Qt.DisplayRole)
 
-            return 'Quark'
             if col == 1:
                 index_sibling = index.sibling(row, col-1)
+
                 item = super(StructTreeModel, self).data(index_sibling, Qt.UserRole)
-                return item.size
+                if item is not None:
+                    return item.size
             if col == 2:
                 return None
 
@@ -557,57 +633,48 @@ class StructTreeModel(PaPITreeModel):
             pass
 
         if role == Qt.UserRole:
-            pass
-
-        if role == Qt.EditRole:
             if col == 0:
-                item = super(StructTreeModel, self).data(index, Qt.UserRole)
-                return item.field
+                return super(StructTreeModel, self).data(index, Qt.UserRole)
             if col == 1:
                 index_sibling = index.sibling(row, col-1)
-                item = super(StructTreeModel, self).data(index_sibling, Qt.UserRole)
-                return item.size
-            if col == 2:
-                return None
+                return super(StructTreeModel, self).data(index_sibling, Qt.UserRole)
+        if role == Qt.EditRole:
+            pass
 
         return None
 
-class StructRootNode(QStandardItem):
-    """
-    This model is used to handle Plugin objects in TreeView created by the yapsy plugin manager.
-    """
-    def __init__(self, name, parent=None):
-        super(StructRootNode, self).__init__(name)
-        self.nodes = {}
-        self.size = ''
-        self.field = 'Data'
+    def flags(self, index):
+        if not index.isValid():
+            return None
 
-    def appendRow(self, field):
+        row = index.row()
+        col = index.column()
+        flags = Qt.ItemIsEnabled & ~Qt.ItemIsSelectable
 
-        elements = str.split(field.desc, "::")
+        if col == 0:
+            item = super(StructTreeModel, self).data(index, Qt.UserRole)
 
-        # Create new sub node for this element
+            if item is not None:
+                if item.size != '':
+                    flags |= Qt.ItemIsSelectable
 
-        if elements[0] not in self.nodes:
+        if col == 1:
+            index_sibling = index.sibling(row, col-1)
+            item = super(StructTreeModel, self).data(index_sibling, Qt.UserRole)
+            if item is not None:
+                if item.size != '':
+                    flags |= Qt.ItemIsSelectable
 
-#            sub_elements = str.split(field.desc, "::", 1)
-            #field.desc = sub_elements[1]
-            struct_node = StructTreeNode(field, 0)
-            self.nodes[elements[0]] = struct_node
+        if col == 2:
+            return None
 
-            super(StructRootNode, self).appendRow(struct_node)
-
-        # There is already a subnode for this element
-
-        if elements[0] in self.nodes:
-            self.nodes[elements[0]].appendRow(field)
-
+        return flags
 
 class StructTreeNode(QStandardItem):
     """
     This model is used to handle Plugin objects in TreeView created by the yapsy plugin manager.
     """
-    def __init__(self, field, level, parent=None):
+    def __init__(self, field, level, flags=~Qt.ItemIsEnabled, parent=None):
 
         elements = str.split(field.desc, "::")
 
@@ -618,6 +685,7 @@ class StructTreeNode(QStandardItem):
         self.size = ''
         self.field = ''
         self.object = field
+        self.flags = flags
 
         super(StructTreeNode, self).__init__(elements[self.level])
 
@@ -632,24 +700,36 @@ class StructTreeNode(QStandardItem):
         if len(elements) > self.level + 1:
 
             if self.time_identifier not in self.nodes:
+
                 struct_node = QStandardItem(self.time_identifier)
+#                struct_node = StructTreeNode(CustomField(desc=self.time_identifier, size=''), 0)
+                struct_node.setColumnCount(2)
+
                 self.nodes[self.time_identifier] = struct_node
                 super(StructTreeNode, self).appendRow(struct_node)
 
             if self.ptime_identifier not in self.nodes:
                 struct_node = QStandardItem(self.ptime_identifier)
+                #struct_node = StructTreeNode(CustomField(desc=self.ptime_identifier, size=''), 0)
+                struct_node.setColumnCount(2)
+
                 self.nodes[self.ptime_identifier] = struct_node
                 super(StructTreeNode, self).appendRow(struct_node)
 
             if elements[self.level + 1] not in self.nodes:
                 struct_node = StructTreeNode(field, self.level + 1)
+                struct_node.setColumnCount(2)
+
                 self.nodes[elements[self.level + 1]] = struct_node
                 super(StructTreeNode, self).appendRow(struct_node)
 
+                self.field = elements[self.level]
+
             if elements[self.level + 1] in self.nodes:
                 self.nodes[elements[self.level + 1]].appendRow(field)
+
+            self.object = None
         else:
-            self.size = '3x1'
             self.field = elements[self.level]
 
     def data(self, role):
@@ -674,3 +754,30 @@ class StructTreeNode(QStandardItem):
             return None
 
         return None
+
+    def flags(self, index):
+        return self.flags
+
+# ------------------------------------
+# Delegates
+# ------------------------------------
+
+class CustomFieldDelegate (QStyledItemDelegate):
+    def paint(self, painter, option, index):
+
+        if index.column() == 2:
+
+            button = QStyleOptionButton()
+            r = option.rect # getting the rect of the cell
+
+            x = r.left()
+            y = r.top()
+            w = r.width()
+            h = r.height()
+            button.rect = QRect(x, y, w, h)
+            button.text = "X"
+            button.state = QStyle.State_Enabled;
+
+            QApplication.style().drawControl(QStyle.CE_PushButton, button, painter)
+        else:
+            QStyledItemDelegate.paint(self, painter, option, index)

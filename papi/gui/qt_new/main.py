@@ -290,7 +290,7 @@ class GUI(QMainWindow, Ui_QtNewMain):
 
         :return:
         """
-        self.create_record_config = CreateRecordingConfig(self.gui_api)
+        self.create_record_config = CreateRecordingConfig(self.gui_api, self.gui_data)
         self.create_record_config.show()
 
     def load_triggered(self):
