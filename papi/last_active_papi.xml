@@ -1,13 +1,13 @@
-<PaPiConfig Date="2015-03-06 17:18:06" PaPI_version="1.0.0">
+<PaPiConfig Date="2015-03-24 11:59:05" PaPI_version="1.0.0">
   <guiConfig>
+    <tabs />
     <size>
-      <y>
-        <value>853</value>
-      </y>
       <x>
         <value>771</value>
       </x>
+      <y>
+        <value>853</value>
+      </y>
     </size>
-    <tabs />
   </guiConfig>
 </PaPiConfig>
