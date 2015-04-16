@@ -76,7 +76,7 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
         # -----------------------------------------
 
         self.previewButton_sub.clicked.connect(self.preview_sub_button_triggered)
-
+        self.sendConfigButton.clicked.connect(self.send_config_triggered)
         self.struct_model_sub = StructTreeModel()
         self.struct_model_sub.setHorizontalHeaderLabels(['Name', 'Size'])
         self.structureView_sub.setModel(self.struct_model_sub)
@@ -98,6 +98,7 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
         # Internal variables
         # ---------------------------------------------
         self.boxes = []
+        self.last_selected_item = None
         self.selectionGrid.setAlignment(Qt.AlignTop)
 
     def showEvent(self, *args, **kwargs):
@@ -109,11 +110,11 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
         self.field_model.appendRow(custom_field_item)
         self.customFieldTable.resizeColumnsToContents()
 
-        for i in range(self.struct_model.rowCount()):
-            index = self.struct_model.index(i, 2)
-            #print(index)
-            button = QPushButton('Remove')
-            #self.customFieldTable.setIndexWidget(index, button)
+        # for i in range(self.struct_model.rowCount()):
+        #     index = self.struct_model.index(i, 2)
+        #     #print(index)
+        #     button = QPushButton('Remove')
+        #     #self.customFieldTable.setIndexWidget(index, button)
 
     def preview_button_triggered(self):
 
@@ -148,6 +149,22 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
         self.structureView_sub.resizeColumnToContents(0)
         self.structureView_sub.resizeColumnToContents(1)
 
+    def send_config_triggered(self):
+
+        if self.last_selected_item is not None:
+            item = self.last_selected_item
+
+            for boxIndex in range(len(item.save)):
+                boxPlugin = self.boxes[boxIndex]['boxPlugin']
+                boxBlock = self.boxes[boxIndex]['boxBlock']
+                boxSignal = self.boxes[boxIndex]['boxSignal']
+
+                dplugin_name = boxPlugin.currentText()
+                dblock_name = boxBlock.currentText()
+                dsignal_name = boxSignal.currentText()
+
+                item.save[boxIndex] = dplugin_name + "::" + dblock_name + "::" + dsignal_name
+
     def custom_field_table_clicked(self, index):
 
         if index.isValid() is False:
@@ -172,6 +189,7 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
         if item is None:
             return
 
+        self.last_selected_item = item
 
         for i in reversed(range(self.selectionGrid.count())):
                 widget = self.selectionGrid.itemAt(i).widget()
@@ -185,9 +203,8 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
         self.boxes.clear()
 
         for i in range(1, int(item.size)+1):
-            print('index' + str(i))
             newBoxes = {}
-            newBoxes['item'] = item
+
             newBoxes['boxPlugin'] = QComboBox()
             newBoxes['boxBlock'] = QComboBox()
             newBoxes['boxSignal'] = QComboBox()
@@ -195,17 +212,17 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
             newBoxes['boxPlugin'].currentIndexChanged.connect(lambda index = i,
                                                                      boxIndex = i-1 ,
                                                                      item = item:
-                                                               self.selection_changed_plugin(index, boxIndex, item))
+                                                               self.selection_changed_plugin(boxIndex, item))
 
             newBoxes['boxBlock'].currentIndexChanged.connect(lambda index = i,
                                                                     boxIndex = i-1 ,
                                                                     item = item:
-                                                             self.selection_changed_block(index, boxIndex, item))
+                                                             self.selection_changed_block(boxIndex, item))
 
-            newBoxes['boxSignal'].currentIndexChanged.connect(lambda index = i,
-                                                                    boxIndex = i-1 ,
-                                                                    item = item:
-                                                             self.selection_changed_signal(index, boxIndex, item))
+            # newBoxes['boxSignal'].currentIndexChanged.connect(lambda index = i,
+            #                                                         boxIndex = i-1 ,
+            #                                                         item = item:
+            #                                                  self.selection_changed_signal(boxIndex, item))
 
 
             self.selectionGrid.addWidget(newBoxes['boxPlugin'], i, 0)
@@ -220,18 +237,68 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
                 if len(dplugin.get_dblocks()):
                     newBoxes['boxPlugin'].addItem(dplugin.uname)
 
-
-
-                # for dblock_name in dplugin.get_dblocks():
-                #     dblock = dplugin.get_dblock_by_name(dblock_name)
-                #     newBoxes['boxBlocks'].addItem(dblock.name)
-
-                    # for signal in dblock.get_signals():
-                    #     boxSignals.addItem(signal)
-
             self.boxes.append(newBoxes)
 
-    def selection_changed_plugin(self, index, boxIndex, item):
+            # ----------------------------------
+            # Pre-Select if possible
+            # ----------------------------------
+
+            self.selection_changed_plugin(i-1, item)
+
+            if item.save[i-1] is not None:
+
+                if not self.pre_select_boxes(i-1, item.save):
+                    item.save[i-1] = None
+
+    def pre_select_boxes(self, boxIndex, save):
+
+        elements = str.split(save[boxIndex], "::")
+
+        wished_dplugin = elements[0]
+        wished_dblock  = elements[1]
+        wished_dsignal = elements[2]
+
+        dplugin = self.api.get_dplugin_by_uname(wished_dplugin)
+
+        if dplugin is not None:
+
+            index = self.boxes[boxIndex]['boxPlugin'].findText(wished_dplugin)
+            self.boxes[boxIndex]['boxPlugin'].setCurrentIndex(index)
+
+            dblock = dplugin.get_dblock_by_name(wished_dblock)
+
+            if dblock is not None:
+
+                index = self.boxes[boxIndex]['boxBlock'].findText(wished_dblock)
+                self.boxes[boxIndex]['boxBlock'].setCurrentIndex(index)
+
+                dsignal = dblock.get_signal_by_uname(wished_dsignal)
+
+                if dsignal is not None:
+
+                    index = self.boxes[boxIndex]['boxSignal'].findText(wished_dsignal)
+                    self.boxes[boxIndex]['boxSignal'].setCurrentIndex(index)
+
+                    return True
+                else:
+                    self.boxes[boxIndex]['boxSignal'].setCurrentIndex(-1)
+            else:
+                self.boxes[boxIndex]['boxBlock'].setCurrentIndex(-1)
+
+        self.boxes[boxIndex]['boxPlugin'].setCurrentIndex(-1)
+        return False
+
+    def selection_changed_plugin(self, boxIndex, item):
+
+        wished_dplugin = ''
+        wished_dblock  = ''
+        wished_dsignal = ''
+
+        if item.save[boxIndex] is not None:
+            save_ele = str.split(item.save[boxIndex], "::")
+            wished_dplugin = save_ele[0]
+            wished_dblock  = save_ele[1]
+            wished_dsignal = save_ele[2]
 
         if boxIndex >= len(self.boxes) :
             return
@@ -259,8 +326,8 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
                 dblock = dplugin.get_dblock_by_name(dblock_name)
                 boxBlock.addItem(dblock.name)
 
+    def selection_changed_block(self, boxIndex, item):
 
-    def selection_changed_block(self, index, boxIndex, item):
         boxPlugin = self.boxes[boxIndex]['boxPlugin']
         boxBlock = self.boxes[boxIndex]['boxBlock']
         boxSignal = self.boxes[boxIndex]['boxSignal']
@@ -281,39 +348,28 @@ class CreateRecordingConfig(QMainWindow, Ui_CreateRecording):
                 if len(dblock.get_signals()):
                     for signal in dblock.get_signals():
                         boxSignal.addItem(signal.uname)
-                else:
-                    item.save[boxIndex] = None
-            else:
-                item.save[boxIndex] = None
-        else:
-            item.save[boxIndex] = None
 
-                    #item.save[boxIndex] = 'QUARK'
-    def selection_changed_signal(self, index, boxIndex, item):
+    def selection_changed_signal(self, boxIndex, item):
         boxPlugin = self.boxes[boxIndex]['boxPlugin']
         boxBlock = self.boxes[boxIndex]['boxBlock']
         boxSignal = self.boxes[boxIndex]['boxSignal']
-
 
         dplugin_name = boxPlugin.currentText()
         dblock_name = boxBlock.currentText()
         dsignal_name = boxSignal.currentText()
 
-
-        item.save[boxIndex] = dplugin_name + "::" + dblock_name + "::" + dsignal_name
+        #item.save[boxIndex] = dplugin_name + "::" + dblock_name + "::" + dsignal_name
 
         print(item.save)
 
+
 class CRC(vip_base):
 
-
     def initiate_layer_0(self, config=None):
-
 
         self.widget = CreateRecordingConfig(self.control_api)
 
         self.set_widget_for_internal_usage( self.widget )
-
 
         # ---------------------------
         # Create Parameters
@@ -383,12 +439,24 @@ class CRC(vip_base):
         """
         pass
 
+
 class CustomField():
-    def __init__(self, desc='Data::force::sensor', size='3'):
+    def __init__(self, desc='Data::force::sensor', size='1'):
         self.desc = desc
-        self.size = size
+        self.__size = size
         if size is not '':
             self.save = [None] * int(size)
+
+    def __getSize(self):
+        return self.__size
+
+    def __setSize(self, size):
+        self.__size = size
+        self.save = [None] * int(size)
+
+    size = property(fget=__getSize, fset=__setSize)
+
+
 
 class CustomFieldItem(QStandardItem):
     def __init__(self, custom_field):
